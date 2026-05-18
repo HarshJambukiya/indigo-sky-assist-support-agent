@@ -1,0 +1,103 @@
+{
+  "name": "IndiGo AI Support — Main Orchestrator",
+  "nodes": [
+    {
+      "id": "webhook-1",
+      "name": "Chat Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {
+        "path": "chat",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "http-1",
+      "name": "Call FastAPI /chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [460, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.FASTAPI_URL }}/chat",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "message",    "value": "={{ $json.body.message }}" },
+            { "name": "session_id", "value": "={{ $json.body.session_id }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "switch-1",
+      "name": "Route by Agent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.agent }}",
+        "rules": {
+          "rules": [
+            { "value2": "ESCALATE", "output": 0 },
+            { "value2": "BOOKING",  "output": 1 },
+            { "output": 2 }
+          ]
+        }
+      }
+    },
+    {
+      "id": "slack-1",
+      "name": "Slack Handoff Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=🚨 *Human Handoff* | Ticket: {{ $json.ticket_id }} | Session: {{ $json.session_id }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "respond-1",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Chat Webhook":     { "main": [[{ "node": "Call FastAPI /chat", "type": "main", "index": 0 }]] },
+    "Call FastAPI /chat": { "main": [[{ "node": "Route by Agent",   "type": "main", "index": 0 }]] },
+    "Route by Agent":   {
+      "main": [
+        [{ "node": "Slack Handoff Alert", "type": "main", "index": 0 }],
+        [{ "node": "Return Response",     "type": "main", "index": 0 }],
+        [{ "node": "Return Response",     "type": "main", "index": 0 }]
+      ]
+    },
+    "Slack Handoff Alert": { "main": [[{ "node": "Return Response", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

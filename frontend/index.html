@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IndiGo AI Support | Customer Service Chatbot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --indigo-blue: #1a237e;
+    --indigo-light: #283593;
+    --accent: #00bcd4;
+    --accent-glow: rgba(0,188,212,0.3);
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1f2937;
+    --border: rgba(255,255,255,0.08);
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --user-bubble: linear-gradient(135deg,#1a237e,#283593);
+    --bot-bubble: #1f2937;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:'Inter',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    background:linear-gradient(135deg,var(--indigo-blue),var(--indigo-light));
+    padding:16px 24px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    border-bottom:1px solid var(--border);
+    box-shadow:0 4px 20px rgba(26,35,126,0.4);
+    flex-shrink:0;
+  }
+  .logo { font-size:28px; }
+  .header-info h1 { font-size:18px; font-weight:700; letter-spacing:0.5px; }
+  .header-info p  { font-size:12px; color:rgba(255,255,255,0.7); margin-top:2px; }
+  .status-dot {
+    width:10px; height:10px; border-radius:50%;
+    background:var(--success);
+    box-shadow:0 0 8px var(--success);
+    animation:pulse 2s infinite;
+    margin-left:auto;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+  /* ── Agent Badge ── */
+  #agent-badge {
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:24px;
+    padding:6px 14px;
+    font-size:12px;
+    color:var(--accent);
+    display:flex; align-items:center; gap:6px;
+    margin-left:auto;
+    transition:all 0.3s;
+  }
+  #agent-badge .badge-dot {
+    width:8px; height:8px; border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 6px var(--accent);
+  }
+
+  /* ── Chat Container ── */
+  .chat-container {
+    flex:1; overflow-y:auto; padding:24px;
+    display:flex; flex-direction:column; gap:16px;
+    scroll-behavior:smooth;
+  }
+  .chat-container::-webkit-scrollbar { width:4px; }
+  .chat-container::-webkit-scrollbar-thumb { background:var(--surface2); border-radius:4px; }
+
+  /* ── Messages ── */
+  .message { display:flex; gap:12px; max-width:75%; animation:fadeIn 0.3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:none;} }
+  .message.user  { align-self:flex-end; flex-direction:row-reverse; }
+  .message.bot   { align-self:flex-start; }
+
+  .avatar {
+    width:36px; height:36px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; flex-shrink:0;
+  }
+  .message.user .avatar { background:var(--indigo-blue); }
+  .message.bot  .avatar { background:var(--surface2); border:1px solid var(--border); }
+
+  .bubble {
+    padding:12px 16px; border-radius:16px;
+    font-size:14px; line-height:1.6;
+    max-width:100%;
+  }
+  .message.user .bubble {
+    background:var(--user-bubble);
+    border-bottom-right-radius:4px;
+    color:#fff;
+  }
+  .message.bot .bubble {
+    background:var(--bot-bubble);
+    border:1px solid var(--border);
+    border-bottom-left-radius:4px;
+    color:var(--text);
+  }
+
+  /* ── Typing Indicator ── */
+  .typing-indicator { display:flex; gap:5px; padding:8px 4px; }
+  .typing-dot {
+    width:8px; height:8px; border-radius:50%;
+    background:var(--accent);
+    animation:typing 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay:0.2s; }
+  .typing-dot:nth-child(3) { animation-delay:0.4s; }
+  @keyframes typing { 0%,60%,100%{transform:translateY(0);} 30%{transform:translateY(-8px);} }
+
+  /* ── Handoff Banner ── */
+  #handoff-banner {
+    display:none;
+    background:linear-gradient(135deg,#1b5e20,#2e7d32);
+    border:1px solid #4caf50;
+    border-radius:12px;
+    padding:16px 20px;
+    margin:0 24px;
+    animation:fadeIn 0.5s ease;
+    flex-shrink:0;
+  }
+  #handoff-banner h3 { font-size:15px; color:#a5d6a7; margin-bottom:4px; }
+  #handoff-banner p  { font-size:13px; color:#c8e6c9; }
+
+  /* ── Input Area ── */
+  .input-area {
+    padding:16px 24px;
+    border-top:1px solid var(--border);
+    background:var(--surface);
+    display:flex; flex-direction:column; gap:12px;
+    flex-shrink:0;
+  }
+  .input-row { display:flex; gap:10px; align-items:flex-end; }
+  #user-input {
+    flex:1;
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px 16px;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    color:var(--text);
+    resize:none;
+    outline:none;
+    transition:border-color 0.2s;
+    max-height:120px;
+  }
+  #user-input:focus { border-color:var(--accent); }
+  #user-input::placeholder { color:var(--text-muted); }
+
+  .btn {
+    padding:12px 20px; border-radius:12px;
+    border:none; cursor:pointer;
+    font-family:'Inter',sans-serif;
+    font-size:14px; font-weight:600;
+    transition:all 0.2s; white-space:nowrap;
+  }
+  #send-btn {
+    background:linear-gradient(135deg,var(--indigo-blue),var(--accent));
+    color:#fff;
+    min-width:80px;
+  }
+  #send-btn:hover { opacity:0.9; transform:scale(1.02); }
+  #send-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+  /* ── Quick Actions ── */
+  .quick-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .quick-btn {
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:6px 14px;
+    font-size:12px;
+    color:var(--text-muted);
+    cursor:pointer;
+    transition:all 0.2s;
+  }
+  .quick-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* ── Upload btn ── */
+  #upload-area {
+    display:flex; align-items:center; gap:8px;
+    padding:8px 14px;
+    background:var(--surface2);
+    border:1px dashed var(--border);
+    border-radius:10px;
+    cursor:pointer;
+    font-size:12px; color:var(--text-muted);
+    transition:border-color 0.2s;
+  }
+  #upload-area:hover { border-color:var(--accent); color:var(--accent); }
+  #resume-file { display:none; }
+
+  /* ── Confidence pill ── */
+  .confidence-pill {
+    display:inline-block;
+    background:rgba(0,188,212,0.1);
+    border:1px solid rgba(0,188,212,0.3);
+    border-radius:20px;
+    padding:2px 10px;
+    font-size:11px; color:var(--accent);
+    margin-top:6px;
+  }
+
+  /* ── Config panel ── */
+  .config-row {
+    display:flex; align-items:center; gap:10px;
+    font-size:12px; color:var(--text-muted);
+  }
+  #api-url-input {
+    flex:1; background:var(--surface2);
+    border:1px solid var(--border); border-radius:8px;
+    padding:6px 10px; font-size:12px; color:var(--text);
+    outline:none; font-family:monospace;
+  }
+  #api-url-input:focus { border-color:var(--accent); }
+  #save-url-btn {
+    background:var(--accent); color:#000;
+    padding:6px 12px; border-radius:8px;
+    font-size:12px; font-weight:600;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Header ────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">✈️</div>
+  <div class="header-info">
+    <h1>IndiGo AI Support</h1>
+    <p>Powered by Groq · Multi-Agent · RAG</p>
+  </div>
+  <div id="agent-badge">
+    <div class="badge-dot"></div>
+    <span id="agent-name">Ready</span>
+  </div>
+  <div class="status-dot" title="Online"></div>
+</header>
+
+<!-- ── Handoff Banner ─────────────────────────────────────────────────────── -->
+<div id="handoff-banner">
+  <h3>👤 Connecting to Human Agent...</h3>
+  <p id="ticket-text">Ticket created. An agent will join shortly.</p>
+</div>
+
+<!-- ── Chat Messages ─────────────────────────────────────────────────────── -->
+<div class="chat-container" id="chat-container">
+  <!-- Welcome message -->
+  <div class="message bot">
+    <div class="avatar">🤖</div>
+    <div>
+      <div class="bubble">
+        👋 Welcome to <strong>IndiGo Airlines AI Support</strong>!<br><br>
+        I can help you with:<br>
+        ✈️ Flight bookings &amp; PNR lookup<br>
+        🧳 Baggage policies &amp; fees<br>
+        ❓ FAQs about check-in, meals, seats<br>
+        📄 Resume upload for career queries<br>
+        👤 Human agent connection<br><br>
+        How can I assist you today?
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Input Area ─────────────────────────────────────────────────────────── -->
+<div class="input-area">
+
+  <!-- API URL Config -->
+  <div class="config-row">
+    <span>🔗 API:</span>
+    <input id="api-url-input" type="text"
+           placeholder="Paste your ngrok URL (e.g. https://abc123.ngrok-free.app)"
+           value=""/>
+    <button class="btn" id="save-url-btn" onclick="saveApiUrl()">Save</button>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="quick-actions">
+    <button class="quick-btn" onclick="sendQuick('What is IndiGo baggage allowance?')">🧳 Baggage</button>
+    <button class="quick-btn" onclick="sendQuick('I want to cancel my flight PNR AB1234')">❌ Cancel Flight</button>
+    <button class="quick-btn" onclick="sendQuick('How do I check in online?')">📱 Check-in</button>
+    <button class="quick-btn" onclick="sendQuick('I am very angry and want to speak to a human')">👤 Human Agent</button>
+    <button class="quick-btn" onclick="sendQuick('Tell me about IndiGo career opportunities')">💼 Careers</button>
+  </div>
+
+  <!-- Message Input -->
+  <div class="input-row">
+    <!-- Resume Upload -->
+    <label class="upload-area" id="upload-area" title="Upload your resume PDF">
+      📄
+      <input type="file" id="resume-file" accept=".pdf" onchange="uploadResume(this)"/>
+    </label>
+
+    <textarea id="user-input" rows="1"
+              placeholder="Type your message... (Enter to send)"
+              onkeydown="handleKey(event)"
+              oninput="autoResize(this)"></textarea>
+
+    <button class="btn" id="send-btn" onclick="sendMessage()">Send ↑</button>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let API_URL    = localStorage.getItem('indigo_api_url') || '';
+let SESSION_ID = localStorage.getItem('indigo_session') || generateId();
+
+// Restore saved URL to input
+document.getElementById('api-url-input').value = API_URL;
+localStorage.setItem('indigo_session', SESSION_ID);
+
+function generateId() {
+  return 'sess-' + Math.random().toString(36).substr(2, 12);
+}
+
+function saveApiUrl() {
+  API_URL = document.getElementById('api-url-input').value.trim().replace(/\/$/, '');
+  localStorage.setItem('indigo_api_url', API_URL);
+  addMessage('bot', `✅ API URL saved! Connected to:\n${API_URL}`);
+}
+
+// ── Auto-resize textarea ──────────────────────────────────────────────────
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+// ── Send Message ──────────────────────────────────────────────────────────
+async function sendMessage() {
+  const input = document.getElementById('user-input');
+  const text  = input.value.trim();
+  if (!text) return;
+
+  if (!API_URL) {
+    addMessage('bot', '⚠️ Please paste your ngrok URL above and click Save first!');
+    return;
+  }
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  addMessage('user', text);
+  showTyping();
+  setLoading(true);
+
+  try {
+    const res = await fetch(`${API_URL}/chat`, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({ message: text, session_id: SESSION_ID }),
+    });
+
+    const data = await res.json();
+    hideTyping();
+
+    updateAgentBadge(data.agent, data.confidence);
+    addMessage('bot', data.response, data.agent, data.confidence);
+
+    if (data.handoff) showHandoffBanner(data.ticket_id);
+
+  } catch (err) {
+    hideTyping();
+    addMessage('bot', `❌ Connection error: ${err.message}\n\nMake sure your ngrok URL is correct and Colab is running.`);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function sendQuick(text) {
+  document.getElementById('user-input').value = text;
+  sendMessage();
+}
+
+// ── Upload Resume ─────────────────────────────────────────────────────────
+async function uploadResume(input) {
+  if (!input.files[0]) return;
+  if (!API_URL) { addMessage('bot', '⚠️ Save your API URL first!'); return; }
+
+  const file     = input.files[0];
+  const formData = new FormData();
+  formData.append('file', file);
+
+  addMessage('user', `📄 Uploading resume: ${file.name}`);
+  showTyping();
+
+  try {
+    const res  = await fetch(`${API_URL}/upload-resume?session_id=${SESSION_ID}`, {
+      method: 'POST', body: formData
+    });
+    const data = await res.json();
+    hideTyping();
+    addMessage('bot', `✅ **Resume processed!**\n${data.chunks_added} sections indexed.\n\n${data.message}`);
+  } catch (err) {
+    hideTyping();
+    addMessage('bot', `❌ Upload failed: ${err.message}`);
+  }
+  input.value = '';
+}
+
+// ── UI Helpers ────────────────────────────────────────────────────────────
+function addMessage(role, text, agent = null, confidence = null) {
+  const container = document.getElementById('chat-container');
+  const div       = document.createElement('div');
+  div.className   = `message ${role}`;
+
+  const avatar = role === 'user' ? '🧑' : '🤖';
+  const pilHtml = (agent && confidence && role === 'bot')
+    ? `<div class="confidence-pill">${agentLabel(agent)} · ${Math.round(confidence*100)}%</div>`
+    : '';
+
+  div.innerHTML = `
+    <div class="avatar">${avatar}</div>
+    <div>
+      <div class="bubble">${escHtml(text).replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div>
+      ${pilHtml}
+    </div>`;
+
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function agentLabel(agent) {
+  const labels = { FAQ:'FAQ Agent', BOOKING:'Booking Agent', BAGGAGE:'Baggage Agent',
+                   ESCALATE:'Handoff Agent', RESUME:'Resume Agent', GREETING:'Welcome Agent' };
+  return labels[agent] || agent;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let typingEl = null;
+function showTyping() {
+  const container = document.getElementById('chat-container');
+  typingEl = document.createElement('div');
+  typingEl.className = 'message bot';
+  typingEl.id = 'typing';
+  typingEl.innerHTML = `
+    <div class="avatar">🤖</div>
+    <div class="bubble">
+      <div class="typing-indicator">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>`;
+  container.appendChild(typingEl);
+  container.scrollTop = container.scrollHeight;
+}
+function hideTyping() { document.getElementById('typing')?.remove(); }
+
+function setLoading(v) {
+  document.getElementById('send-btn').disabled = v;
+  document.getElementById('send-btn').textContent = v ? '...' : 'Send ↑';
+}
+
+function updateAgentBadge(agent, confidence) {
+  document.getElementById('agent-name').textContent =
+    `${agentLabel(agent)} · ${Math.round(confidence*100)}%`;
+}
+
+function showHandoffBanner(ticketId) {
+  const banner = document.getElementById('handoff-banner');
+  banner.style.display = 'block';
+  document.getElementById('ticket-text').textContent =
+    `Ticket: ${ticketId} · A human agent will join in 3-5 minutes.`;
+}
+</script>
+</body>
+</html>
