@@ -12,8 +12,8 @@ from groq import Groq
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 # ── Model names ──────────────────────────────────────────────────────────────
-FAST_MODEL  = os.environ.get("GROQ_MODEL_FAST",  "llama3-8b-8192")   # cheap + fast
-SMART_MODEL = os.environ.get("GROQ_MODEL_SMART", "llama3-70b-8192")  # smarter
+FAST_MODEL  = os.environ.get("GROQ_MODEL_FAST",  "llama-3.1-8b-instant")     # cheap + fast
+SMART_MODEL = os.environ.get("GROQ_MODEL_SMART", "llama-3.3-70b-versatile")  # smarter
 
 
 def call_groq(messages: list[dict], model: str = FAST_MODEL, temperature: float = 0.1) -> str:
